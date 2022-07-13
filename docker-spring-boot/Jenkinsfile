@@ -1,30 +1,49 @@
-node {
-   
-    stage('pre-build') { 
-        sh '''
-            sudo rm -rf docker-java
-        '''
-        git 'https://github.com/Ikrao/docker-java.git'
-       
-    }
-    stage('Build') {
-        
-                sh '''
-                pwd
+pipeline {
+    agent any
+
+    stages {
+        stage('pre-build') {
+            steps {
+                sh''' ls -lrt
+                sudo su
+                sudo docker version
+                sudo docker ps 
+                sudo docker ps -a 
+                sudo docker volume ls
+                sudo rm -rf docker-java
+                git clone https://github.com/saikrishnapenthala/docker-java.git
+
+
+                '''
+            }
+        }
+     stage('build') {
+            steps {
+                sh'''
                 cd docker-spring-boot
                 mvn clean package
-                sudo docker build -t spring-boot:1.0 .
+                aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 596604808085.dkr.ecr.us-east-1.amazonaws.com
+                docker build -t docker-spring-boot .
+                docker tag docker-spring-boot:latest 596604808085.dkr.ecr.us-east-1.amazonaws.com/docker-spring-boot:latest
+               docker push 596604808085.dkr.ecr.us-east-1.amazonaws.com/docker-spring-boot:latest 
+
                 '''
-            
-        
-    }
-    stage('run') {
-        
-        sh'''
-                sudo docker stop springboot && sudo docker rm springboot
-                sudo docker stop springboot && sudo rm springboot 
-                sudo docker run --name springboot -d -p 8090:8080 -t spring-boot:1.0
+            }
+        }
+
+    stage('Deploy') {
+            steps {
+                sh''' 
+                
+                sudo docker stop docker-spring-boot && sudo rm docker-spring-boot 
+                sudo docker run --name docker-spring-boot -d -p 8090:8080 -t docker-spring-boot:latest
                 echo 'containers running'
-        '''
+
+             
+
+                '''
+            }
+        }
+
     }
 }
